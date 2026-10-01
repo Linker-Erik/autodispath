@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Автодиспетчер — центр управления движением</title>
+        <meta name="description" content="Демонстрационный симулятор маршрутов, поездов, составов и автоматического перепланирования движения.">
+        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e766e'/%3E%3Cpath d='M10 6v20m12-20v20M10 10h12M10 17h12M10 24h12' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <header>
+            <a class="brand" href="./">
+                <span class="logo">╫</span>
+                Автодиспетчер <span class="edition">LAB</span>
+            </a>
+            <div class="headmeta">
+                Диспетчерский центр <span class="demo">ДЕМО · СИМУЛЯТОР</span>
+            </div>
+        </header>
+        <main>
+            <div class="titlebar">
+                <div>
+                    <div class="eyebrow">УЧАСТОК 01 / ЦЕНТРАЛЬНЫЙ</div>
+                    <h1>Движение под контролем</h1>
+                    <p> Астана — Караганда · вымышленный участок, 210 км</p>
+                </div>
+                <div class="clock">
+                    <span>Модельное время</span>
+                    <strong id="clock">08:10:00</strong>
+                </div>
+            </div>
+            <div class="toolbar">
+                <div class="controls">
+                    <button id="play" class="primary">▶ Запустить</button>
+                    <button id="reset" title="Вернуться к исходному сценарию">Сброс</button>
+                    <label>
+                        Темп 
+                        <select id="speed">
+                            <option value="1">×1</option>
+                            <option value="15">×15</option>
+                            <option value="60" selected>×60</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="controls">
+                    <button id="incident" class="danger">⚡ Закрыть перегон</button>
+                    <button id="export">CSV</button>
+                    <button id="pdf">Печать / PDF</button>
+                </div>
+            </div>
+            <div class="channelbar">
+                <div>
+                    <b id="channel">Симулятор · подключение…</b>
+                    <span id="channelAge"></span>
+                </div>
+                <button id="disconnect">Тест потери связи</button>
+                <span class="advisory">Рекомендация, не команда</span>
+            </div>
+            <div class="scenario-toolbar">
+                <span>Сценарии</span>
+                <button id="delayTrain">Задержка выбранного +10 мин</button>
+                <button id="signal">Неисправность сигнала</button>
+                <button id="burst" class="danger">Всплеск ×10</button>
+            </div>
+            <noscript>
+                <p class="alert">Для поездов, графиков и кнопок необходим JavaScript. Откройте сайт в обычном браузере с включённым JavaScript.</p>
+            </noscript>
+            <section class="metrics">
+                <article>
+                    <span>Поезда в движении</span>
+                    <strong id="active">
+                        … <small>/ 6</small>
+                    </strong>
+                    <div>Пассажирские и грузовые</div>
+                </article>
+                <article>
+                    <span>Вагонов в расписании</span>
+                    <strong>156</strong>
+                    <div>6 составов · 3 категории</div>
+                </article>
+                <article>
+                    <span>Задержка по плану</span>
+                    <strong id="delay">
+                        0 <small>мин</small>
+                    </strong>
+                    <div>Сумма отклонений прибытия</div>
+                </article>
+                <article>
+                    <span>
+                        Индекс движения <button class="info" id="qualityInfo" aria-label="Как рассчитан индекс">i</button>
+                    </span>
+                    <strong id="quality" class="green">
+                        100 <small>/ 100</small>
+                    </strong>
+                    <div id="qualityLabel">Норма · учебная формула</div>
+                </article>
+            </section>
+            <div class="workspace">
+                <section class="panel map-panel">
+                    <div class="panelhead">
+                        <div>
+                            <h2>Схема участка</h2>
+                            <p>Локомотивы с вагонами · нажмите на состав</p>
+                        </div>
+                        <span class="tag">5 станций · 4 перегона</span>
+                    </div>
+                    <div class="mapwrap">
+                        <svg id="map" viewBox="0 0 1000 295" role="img" aria-label="Схема станций и положения поездов"></svg>
+                    </div>
+                    <div class="legend">
+                        <span>
+                            <i style="background:#138f86"></i>
+                            Скоростной
+                        </span>
+                        <span>
+                            <i style="background:#5484e3"></i>
+                            Пассажирский
+                        </span>
+                        <span>
+                            <i style="background:#ba8b48"></i>
+                            Грузовой
+                        </span>
+                        <span>○ Станционные пути · длина составов условная</span>
+                    </div>
+                </section>
+                <aside class="panel" id="trainDetail"></aside>
+            </div>
+            <section class="alert" id="alert" hidden></section>
+            <div class="analysisgrid">
+                <section class="panel">
+                    <div class="panelhead">
+                        <div>
+                            <h2 id="atoTitle">Автоведение</h2>
+                            <p id="atoLeg"></p>
+                        </div>
+                        <span class="tag">Расчётная рекомендация</span>
+                    </div>
+                    <div class="ato-body">
+                        <svg id="atoChart" viewBox="0 0 560 185" role="img" aria-label="Расчётный профиль скорости по расстоянию"></svg>
+                        <div class="ato-stats" id="atoStats"></div>
+                        <p id="atoAssumptions"></p>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panelhead">
+                        <div>
+                            <h2>Из чего складывается индекс</h2>
+                            <p>Вклад каждого фактора в итоговые 100 баллов</p>
+                        </div>
+                    </div>
+                    <div id="factorPanel" class="factor-panel"></div>
+                </section>
+            </div>
+            <section class="panel chartpanel">
+                <div class="panelhead">
+                    <div>
+                        <h2>График движения поездов</h2>
+                        <p>Поездограмма · расстояние / время · горизонтальные отрезки — стоянки</p>
+                    </div>
+                    <div class="tabs">
+                        <button id="tabPlan" class="selected">План</button>
+                        <button id="tabCompare">Сравнение</button>
+                    </div>
+                </div>
+                <div class="chartscroll">
+                    <svg id="chart" viewBox="0 0 1120 285" role="img" aria-label="График времени движения каждого поезда"></svg>
+                </div>
+                <div class="timeline">
+                    <button id="back5">−5 мин</button>
+                    <span id="timeStart">08:10</span>
+                    <input aria-label="История последних 15 модельных минут" id="scrub" type="range" min="0" max="0" value="0" step="1">
+                    <span id="timeEnd">08:10</span>
+                    <button id="live">К текущему</button>
+                    <span class="tag" id="replay">Текущее время</span>
+                </div>
+                <p id="historyHint" class="historyhint">История накапливается в текущей вкладке</p>
+            </section>
+            <div class="bottomgrid">
+                <section class="panel">
+                    <div class="panelhead">
+                        <h2>Расписание и маршруты</h2>
+                        <span class="tag">Учебные данные</span>
+                    </div>
+                    <div class="tablewrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Поезд</th>
+                                    <th>Маршрут</th>
+                                    <th>Отправление</th>
+                                    <th>Прибытие</th>
+                                    <th>Задержка</th>
+                                    <th>Состояние</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rows"></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panelhead">
+                        <h2>Журнал диспетчера</h2>
+                    </div>
+                    <div id="log"></div>
+                </section>
+            </div>
+            <footer>Демонстрационная система поддержки решений. Станции, составы и расписания условные. Не управляет реальными поездами и не заменяет системы безопасности движения.</footer>
+        </main>
+        <dialog id="modal">
+            <button id="closeModal" class="close">Закрыть</button>
+            <h2>Прозрачный индекс движения</h2>
+            <p>Учебная оценка, рассчитанная по текущему плану. Это не отраслевой норматив.</p>
+            <div id="factors"></div>
+            <p>Индекс = 25% × расписание + 20% × пропускная способность + 20% × энергоэффективность + 20% × бесконфликтность + 15% × точность прибытия.</p>
+            <p>Норма ≥ 80 · Внимание ≥ 60 · Критично &lt; 60. Энергия рассчитана для ровного пути по упрощённой модели. Все веса и шкалы демонстрационные.</p>
+        </dialog>
+        <section id="printReport"></section>
+        <script src="engine.js"></script>
+        <script src="app.js"></script>
+    </body>
+</html>
